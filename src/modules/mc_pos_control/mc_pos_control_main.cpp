@@ -1993,7 +1993,7 @@ MulticopterPositionControl::task_main()
 			if (!_control_mode.flag_control_climb_rate_enabled) {
 				float thr_val = throttle_curve(_manual.z, _params.thr_hover);
 				_att_sp.thrust = math::min(thr_val, _manual_thr_max.get());
-
+				
 				/* enforce minimum throttle if not landed */
 				if (!_vehicle_land_detected.landed) {
 					_att_sp.thrust = math::max(_att_sp.thrust, _manual_thr_min.get());

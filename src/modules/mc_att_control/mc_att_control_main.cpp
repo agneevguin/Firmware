@@ -765,6 +765,22 @@ MulticopterAttitudeControl::control_attitude_rates(float dt)
 	rates(1) = _ctrl_state.pitch_rate;
 	rates(2) = _ctrl_state.yaw_rate;
 
+	
+	//Pitch and Roll compensation
+	float cosAngle = cos(math::radians(rates(1))); 
+	float target_roll = rates(0);
+	float target_yaw_rate = rates(2);
+
+	float rollComp = rates(0) * cosAngle;
+	float rollCompInv = rates(0) - rollComp;
+	float yawComp = rates(2) * cosAngle;
+	float yawCompInv = rates(2) - yawComp;
+	target_roll = yawCompInv + rollComp; 
+	target_yaw_rate = yawComp + rollCompInv; 
+	rates(0) = target_roll;
+	rates(2) = target_yaw_rate;
+	
+	
 	/* angular rates error */
 	math::Vector<3> rates_err = _rates_sp - rates;
 	_att_control = _params.rate_p.emult(rates_err) + _params.rate_d.emult(_rates_prev - rates) / dt + _rates_int +
@@ -901,15 +917,30 @@ MulticopterAttitudeControl::task_main()
 				_v_rates_sp.yaw = _rates_sp(2);
 				_v_rates_sp.thrust = _thrust_sp;
 				_v_rates_sp.timestamp = hrt_absolute_time();
+				
+				/*
+				//Pitch and Roll compensation
+				float cosAngle = cos(math::radians(_v_rates_sp.pitch)); 
+				float target_roll = _v_rates_sp.roll;
+				float target_yaw_rate = _v_rates_sp.yaw;
 
+				float rollComp = _v_rates_sp.roll * cosAngle;
+				float rollCompInv = _v_rates_sp.roll - rollComp;
+				float yawComp = _v_rates_sp.yaw * cosAngle;
+				float yawCompInv = _v_rates_sp.yaw - yawComp;
+				target_roll = yawCompInv + rollComp;
+				target_yaw_rate = yawComp + rollCompInv; 
+				_v_rates_sp.pitch = 0.0f;
+				_v_rates_sp.roll = target_roll;
+				_v_rates_sp.yaw = target_yaw_rate;
+				*/
+	
 				if (_v_rates_sp_pub != nullptr) {
 					orb_publish(_rates_sp_id, _v_rates_sp_pub, &_v_rates_sp);
 
 				} else if (_rates_sp_id) {
 					_v_rates_sp_pub = orb_advertise(_rates_sp_id, &_v_rates_sp);
 				}
-
-				//}
 
 			} else {
 				/* attitude controller disabled, poll rates setpoint topic */
@@ -926,6 +957,23 @@ MulticopterAttitudeControl::task_main()
 					_v_rates_sp.thrust = _thrust_sp;
 					_v_rates_sp.timestamp = hrt_absolute_time();
 
+					/*
+					//Pitch and Roll compensation
+					float cosAngle = cos(math::radians(_v_rates_sp.pitch)); 
+					float target_roll = _v_rates_sp.roll;
+					float target_yaw_rate = _v_rates_sp.yaw;
+
+					float rollComp = _v_rates_sp.roll * cosAngle;
+					float rollCompInv = _v_rates_sp.roll - rollComp;
+					float yawComp = _v_rates_sp.yaw * cosAngle;
+					float yawCompInv = _v_rates_sp.yaw - yawComp;
+					target_roll = yawCompInv + rollComp; 
+					target_yaw_rate = yawComp + rollCompInv; 
+					_v_rates_sp.pitch = 0.0f;
+					_v_rates_sp.roll = target_roll;
+					_v_rates_sp.yaw = target_yaw_rate;
+					*/
+					
 					if (_v_rates_sp_pub != nullptr) {
 						orb_publish(_rates_sp_id, _v_rates_sp_pub, &_v_rates_sp);
 
@@ -951,6 +999,8 @@ MulticopterAttitudeControl::task_main()
 				_actuators.control[1] = (PX4_ISFINITE(_att_control(1))) ? _att_control(1) : 0.0f;
 				_actuators.control[2] = (PX4_ISFINITE(_att_control(2))) ? _att_control(2) : 0.0f;
 				_actuators.control[3] = (PX4_ISFINITE(_thrust_sp)) ? _thrust_sp : 0.0f;
+				_actuators.control[4] = (PX4_ISFINITE(_manual_control_sp.x)) ? _manual_control_sp.x : 0.0f;
+				
 				_actuators.timestamp = hrt_absolute_time();
 				_actuators.timestamp_sample = _ctrl_state.timestamp;
 

@@ -90,7 +90,7 @@ MultirotorMixer::MultirotorMixer(ControlCallback control_cb,
 	_yaw_scale(yaw_scale),
 	_idle_speed(-1.0f + idle_speed * 2.0f),	/* shift to output range here to avoid runtime calculation */
 	_limits_pub(),
-	_rotor_count(_config_rotor_count[(MultirotorGeometryUnderlyingType)geometry]),
+	_rotor_count(_config_rotor_count[(MultirotorGeometryUnderlyingType)geometry]+2),
 	_rotors(_config_index[(MultirotorGeometryUnderlyingType)geometry])
 {
 }
@@ -227,6 +227,7 @@ MultirotorMixer::mix(float *outputs, unsigned space, uint16_t *status_reg)
 	float		pitch   = constrain(get_control(0, 1) * _pitch_scale, -1.0f, 1.0f);
 	float		yaw     = constrain(get_control(0, 2) * _yaw_scale, -1.0f, 1.0f);
 	float		thrust  = constrain(get_control(0, 3), 0.0f, 1.0f);
+	float		tilt    = constrain(get_control(0, 4) * _pitch_scale, -1.0f, 1.0f);
 	float		min_out = 1.0f;
 	float		max_out = 0.0f;
 
@@ -315,6 +316,7 @@ MultirotorMixer::mix(float *outputs, unsigned space, uint16_t *status_reg)
 
 	// mix again but now with thrust boost, scale roll/pitch and also add yaw
 	for (unsigned i = 0; i < _rotor_count; i++) {
+
 		float out = (roll * _rotors[i].roll_scale +
 			     pitch * _rotors[i].pitch_scale) * roll_pitch_scale +
 			    yaw * _rotors[i].yaw_scale +
@@ -355,6 +357,7 @@ MultirotorMixer::mix(float *outputs, unsigned space, uint16_t *status_reg)
 		}
 	}
 
+
 	/* add yaw and scale outputs to range idle_speed...1 */
 	for (unsigned i = 0; i < _rotor_count; i++) {
 		outputs[i] = (roll * _rotors[i].roll_scale +
@@ -364,6 +367,8 @@ MultirotorMixer::mix(float *outputs, unsigned space, uint16_t *status_reg)
 
 		outputs[i] = constrain(_idle_speed + (outputs[i] * (1.0f - _idle_speed)), _idle_speed, 1.0f);
 	}
+
+	outputs[5]=constrain(tilt, -1.0f, 1.0f);
 
 	return _rotor_count;
 }
